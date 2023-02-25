@@ -1,0 +1,9 @@
+tracepoint:syscalls:sys_enter_sendto /((struct sockaddr_in *)args->addr)->sin_port == 53 / {
+    printf("%s send %d bytes to %s:%d \n\t content: %s\n",
+        comm,
+        args->len,
+        ntop(((struct sockaddr_in *)args->addr)->sin_addr.s_addr),
+        ((struct sockaddr_in *)args->addr)->sin_port,
+        str(args->buff, args->len)
+    )
+}
