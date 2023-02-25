@@ -1,0 +1,33 @@
+
+BEGIN {
+}
+
+// if connect to dns server: 127.0.0.53, then we need to store the fd so we can get the data send to that fd
+tracepoint:syscalls:sys_enter_connect {
+	// compare if the target address is 127.0.0.53
+	$targetAddr = ((struct sockaddr_in *)args->uservaddr)->sin_addr.s_addr;
+	$dnsAddrBytes = pton("127.0.0.53");
+	$dnsAddrInt = ($dnsAddrBytes[3] << 24) + ($dnsAddrBytes[2] << 16) + ($dnsAddrBytes[1] << 8) + ($dnsAddrBytes[0]);
+
+	// debug used code:
+	// printf("%d %d %d %d %d %d\t", ((struct sockaddr_in *)args->uservaddr)->sin_addr.s_addr,  $dnsAddr, $dnsAddrBytes[0], $dnsAddrBytes[1], $dnsAddrBytes[2], $dnsAddrBytes[3]); 
+
+	if ($targetAddr == $dnsAddr) {
+		printf("%s connected to %s:%d, %d\n",
+			comm,
+			ntop(((struct sockaddr_in *)args->uservaddr)->sin_addr.s_addr),
+			((struct sockaddr_in *)args->uservaddr)->sin_port,
+			args->fd
+		);
+		// store this fd into a map
+		@fdMap[pid] = args->fd;
+	}
+}
+
+tracepoint:syscalls:sys_enter_write {
+	// check if the fd is in the map
+	if (@fdMap[pid] > 0) {
+		// load the content that written to the fd
+		printf("\tcontent: %s\n", str(args->buf, args->count));
+	}
+}
